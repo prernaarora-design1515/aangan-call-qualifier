@@ -1,48 +1,59 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { q } from "@/lib/db";
 import { processCall } from "@/lib/pipeline";
-import { parseCallCompleted, parseUsageCharged, VaaniEnvelope, verifySignature } from "@/lib/vaani";
+import { eventId, eventName, isAuthorised, parsePostprocessing, roomName } from "@/lib/vaani";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Trigger: Vaani Labs posts signed events here when a call ends. */
+/**
+ * Trigger: Vaani AI (Settings → Webhooks) posts call events here.
+ * We use `call_started` (caller's number) and `call_postprocessing` (transcript, after the call).
+ */
 export async function POST(req: NextRequest) {
-  const raw = await req.text(); // raw bytes are needed for the HMAC check
-  if (!verifySignature(raw, req.headers.get("x-vaanivoice-signature"))) {
-    return NextResponse.json({ error: "bad signature" }, { status: 401 });
+  const raw = await req.text();
+  if (!isAuthorised(raw, req.nextUrl, req.headers.get("x-vaanivoice-signature"))) {
+    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   }
 
-  const evt = JSON.parse(raw) as VaaniEnvelope;
-  if (evt.type === "webhook.ping") return NextResponse.json({ ok: true });
+  let body: any;
+  try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
+  const event = eventName(body);
+  const id = eventId(body);
 
-  // Vaani retries deliveries — dedupe on the envelope id
+  // Dedupe retries: one row per event per call
   const inserted = await q(
     "INSERT INTO webhook_events (id, type, payload) VALUES ($1,$2,$3) ON CONFLICT (id) DO NOTHING RETURNING id",
-    [evt.id, evt.type, raw]
+    [id, event, raw]
   );
   if (!inserted.length) return NextResponse.json({ ok: true, duplicate: true });
 
-  if (evt.type === "call.completed") {
-    const call = parseCallCompleted(evt);
+  if (event === "call_postprocessing") {
+    // Caller number + real start time come from the earlier call_started event for the same room
+    const room = roomName(body);
+    const [startedEvt] = room
+      ? await q<{ payload: any; received_at: string }>(
+          `SELECT payload, received_at FROM webhook_events
+           WHERE type = 'call_started' AND (payload->>'room_name' = $1 OR payload->'data'->>'room_name' = $1)
+           ORDER BY received_at LIMIT 1`,
+          [room]
+        )
+      : [];
+    const call = parsePostprocessing(body, {
+      phone: startedEvt?.payload?.phone_number ?? startedEvt?.payload?.data?.phone_number ?? null,
+      at: startedEvt ? new Date(startedEvt.received_at) : null,
+    });
     if (!call.transcript.trim()) return NextResponse.json({ ok: true, skipped: "empty transcript" });
-    // Acknowledge within Vaani's 10s timeout; qualify + notify after responding.
+
+    // Respond fast; qualify + notify after the response is sent.
     after(async () => {
       try {
         await processCall({ ...call, source: "vaani" });
       } catch (e) {
-        console.error("processCall failed", evt.id, e);
-        await q("DELETE FROM webhook_events WHERE id = $1", [evt.id]); // allow a retry to reprocess
+        console.error("processCall failed", id, e);
+        await q("DELETE FROM webhook_events WHERE id = $1", [id]); // let a retry reprocess
       }
     });
-  } else if (evt.type === "usage.charged") {
-    const u = parseUsageCharged(evt);
-    if (u.callId && u.amountInr > 0) {
-      await q(
-        "UPDATE calls SET voice_cost_inr = $1, voice_cost_actual = TRUE WHERE external_id = $2",
-        [u.amountInr, String(u.callId)]
-      );
-    }
   }
   return NextResponse.json({ ok: true });
 }

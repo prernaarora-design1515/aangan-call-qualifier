@@ -1,0 +1,20 @@
+# Pulls finished calls from Vaani AI every 5 minutes (Vaani webhooks aren't exposed on this account).
+# Setup: GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#   Name:  VAANI_SYNC_URL
+#   Value: https://aangan-call-qualifier.vercel.app/api/vaani/sync?key=<VAANI_WEBHOOK_SECRET>
+name: Vaani call sync
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Pull new calls from Vaani
+        env:
+          SYNC_URL: ${{ secrets.VAANI_SYNC_URL }}
+        run: |
+          if [ -z "$SYNC_URL" ]; then echo "VAANI_SYNC_URL secret not set"; exit 0; fi
+          curl -fsS --max-time 60 "$SYNC_URL" | head -c 2000

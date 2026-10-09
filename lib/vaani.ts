@@ -1,20 +1,26 @@
 import crypto from "node:crypto";
 
-/** Verifies X-VaaniVoice-Signature: "sha256=<hex HMAC-SHA256 of raw body>" keyed with the vv_whk_ secret. */
-export function verifySignature(rawBody: string, header: string | null): boolean {
+/**
+ * Vaani AI (app.vaanivoice.ai) webhooks are not signed, so the webhook URL carries a secret:
+ *   https://<app>/api/vaani/webhook?key=<VAANI_WEBHOOK_SECRET>
+ * A signed "X-VaaniVoice-Signature: sha256=<hmac>" header is also accepted, if the platform adds signing.
+ */
+export function isAuthorised(rawBody: string, url: URL, signature: string | null): boolean {
   const secret = process.env.VAANI_WEBHOOK_SECRET;
-  if (!secret || !header) return false;
-  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-  const a = Buffer.from(expected);
-  const b = Buffer.from(header.trim());
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!secret) return false;
+  const given = url.searchParams.get("key");
+  if (given && safeEqual(given, secret)) return true;
+  if (signature) {
+    const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+    return safeEqual(signature.trim(), expected);
+  }
+  return false;
 }
 
-export interface VaaniEnvelope {
-  id: string;
-  type: string;
-  created: number;
-  data: Record<string, any>;
+function safeEqual(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
 const pick = (o: any, ...keys: string[]) => {
@@ -25,17 +31,29 @@ const pick = (o: any, ...keys: string[]) => {
   return null;
 };
 
-/**
- * Vaani documents `data` as event-specific with no guaranteed sub-fields,
- * so we read the common shapes defensively.
- */
-export function parseCallCompleted(evt: VaaniEnvelope) {
-  const d = evt.data ?? {};
-  const raw = pick(d, "transcript", "call.transcript", "messages", "conversation");
-  let transcript = "";
-  if (typeof raw === "string") transcript = raw;
-  else if (Array.isArray(raw)) {
-    transcript = raw
+/** Event name: Vaani AI sends `event`; other envelopes use `type`. */
+export const eventName = (b: any): string => String(b?.event ?? b?.type ?? "unknown");
+
+/** Stable id for dedupe: same event for the same call is processed once. */
+export function eventId(b: any): string {
+  const callRef = pick(b, "call_id", "data.call_id", "room_name", "data.room_name", "id") ?? crypto.randomUUID();
+  return `${eventName(b)}:${callRef}`;
+}
+
+export const roomName = (b: any): string | null => pick(b, "room_name", "data.room_name");
+
+/** "AGENT: ...\n\n USER: ..." (or an array of turns) → "Agent: ...\nCaller: ..." */
+export function normaliseTranscript(raw: unknown): string {
+  if (typeof raw === "string") {
+    return raw
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/^(AGENT|ASSISTANT|BOT)\s*:/i, "Agent:").replace(/^(USER|CUSTOMER|CALLER)\s*:/i, "Caller:"))
+      .join("\n");
+  }
+  if (Array.isArray(raw)) {
+    return raw
       .map((m: any) => {
         const role = String(m.role ?? m.speaker ?? "").toLowerCase();
         const who = /assistant|agent|bot/.test(role) ? "Agent" : "Caller";
@@ -43,28 +61,30 @@ export function parseCallCompleted(evt: VaaniEnvelope) {
       })
       .join("\n");
   }
-  const started = pick(d, "started_at", "start_time", "call.started_at", "created_at");
-  const startedAt = started
-    ? new Date(typeof started === "number" ? started * (started < 1e12 ? 1000 : 1) : started)
-    : new Date(evt.created * 1000);
-  const durationRaw = pick(d, "duration_seconds", "duration_sec", "duration", "call.duration");
-  const costRaw = pick(d, "cost_inr", "cost", "charge.amount", "amount");
-
-  return {
-    externalId: String(pick(d, "call_id", "session_id", "id", "call.id") ?? evt.id),
-    callerPhone: pick(d, "from", "caller", "caller_number", "phone", "customer.phone", "call.from"),
-    startedAt,
-    durationSec: durationRaw != null ? Math.round(Number(durationRaw)) : null,
-    transcript,
-    voiceCostInr: costRaw != null && !isNaN(Number(costRaw)) ? Number(costRaw) : null,
-  };
+  return "";
 }
 
-/** `usage.charged` → the actual wallet debit, linked back to a call when an id is present. */
-export function parseUsageCharged(evt: VaaniEnvelope) {
-  const d = evt.data ?? {};
+/**
+ * `call_postprocessing` (Vaani AI): { event, call_id, timestamp, data: { room_name, call_id,
+ * call_duration (ms), end_reason, summary, entities, dispositions, recording_url, transcript } }
+ */
+export function parsePostprocessing(b: any, started?: { phone: string | null; at: Date | null }) {
+  const d = b?.data ?? b ?? {};
+  const durMs = Number(pick(d, "call_duration") ?? 0);
+  const durationSec = durMs ? Math.round(durMs / 1000) : null; // docs: milliseconds
+  const ts = pick(b, "timestamp", "data.timestamp");
+  const endAt = ts ? new Date(typeof ts === "number" ? ts * (ts < 1e12 ? 1000 : 1) : ts) : new Date();
+  const startedAt = started?.at ?? new Date(endAt.getTime() - (durationSec ?? 0) * 1000);
+
   return {
-    callId: pick(d, "call_id", "session_id", "reference_id", "call.id"),
-    amountInr: Number(pick(d, "amount_inr", "amount", "charge.amount") ?? 0),
+    externalId: String(pick(b, "call_id", "data.call_id", "data.room_name", "room_name")),
+    callerPhone: started?.phone ?? pick(d, "phone_number", "from", "caller_number"),
+    startedAt,
+    durationSec,
+    transcript: normaliseTranscript(pick(d, "transcript", "transcription")),
+    voiceCostInr: (() => {
+      const c = pick(d, "cost", "cost_inr", "call_cost");
+      return c != null && !isNaN(Number(c)) ? Number(c) : null;
+    })(),
   };
 }

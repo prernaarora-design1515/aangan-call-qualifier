@@ -1,0 +1,29 @@
+{
+  "name": "aangan-call-qualifier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI phone qualifier for Aangan Studio: Vaani Labs voice agent -> Gemini Flash rubric -> Neon, HubSpot, Resend email handoff, founder dashboard on Vercel.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "tsx scripts/prebuild.ts && next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts --reset",
+    "eval": "tsx --env-file=.env.local scripts/eval.ts"
+  },
+  "dependencies": {
+    "next": "15.5.4",
+    "pg": "8.16.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@types/pg": "8.15.5",
+    "@types/react": "19.1.13",
+    "@types/react-dom": "19.1.9",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { syncFromVaani } from "@/lib/vaani-sync";
 import { availableMonths, inr, monthStats } from "@/lib/metrics";
 import { CRITERION_LABELS, LeadStatus } from "@/lib/types";
 import { STATUS, StatusPill } from "./status";
@@ -17,6 +19,8 @@ const fmtTime = (d: string) =>
   new Date(d).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  // Opening the dashboard also pulls any finished Vaani calls (backstop for the 5-minute sync)
+  if (process.env.VAANI_API_KEY) after(() => syncFromVaani().catch((e) => console.error("vaani sync", e)));
   const months = await availableMonths();
   const { month: qMonth } = await searchParams;
   const month = qMonth && /^\d{4}-\d{2}$/.test(qMonth) ? qMonth : months[0] ?? new Date().toISOString().slice(0, 7);

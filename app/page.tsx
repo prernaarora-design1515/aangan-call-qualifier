@@ -34,10 +34,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   return (
     <main className="wrap">
-      <header className="top">
-        <div>
-          <h1>Aangan Call Desk</h1>
-          <p>Every call answered, qualified and handed off — {monthLabel(month)}</p>
+      <header className="hero">
+        <div className="brand">// Aangan Studio · Call desk</div>
+        <h1>Every call <span className="hl">answered.</span><br />Every lead <span className="hl lilac">qualified.</span></h1>
+        <div className="hero-row">
+          <p className="sub">Answered, checked against Nikhil&apos;s five criteria and handed to a designer — {monthLabel(month)}.</p>
+          <span className="tag">AI call qualifier →</span>
         </div>
         <nav className="months" aria-label="Month">
           {months.map((m) => (
@@ -83,7 +85,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <section className="grid two">
         <div className="card">
-          <h2>Lead quality</h2>
+          <h2>Lead <span className="hl lime">quality</span></h2>
           <div className="mix" role="img" aria-label={ORDER.map((k) => `${STATUS[k].label} ${s.byStatus[k]}`).join(", ")}>
             {ORDER.filter((k) => s.byStatus[k] > 0).map((k) => (
               <span key={k} title={`${STATUS[k].label}: ${s.byStatus[k]}`} style={{ flex: s.byStatus[k], background: STATUS[k].color }} />
@@ -109,7 +111,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
 
         <div className="card">
-          <h2>Calls per day</h2>
+          <h2>Calls <span className="hl pink">per day</span></h2>
           <div className="cols" role="img" aria-label="Calls per day">
             {s.perDay.map((d) => (
               <div className="col" key={d.day}>
@@ -133,7 +135,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <section className="grid two">
         <div className="card">
-          <h2>Why calls weren't a fit</h2>
+          <h2>Why calls <span className="hl">weren&apos;t a fit</span></h2>
           {s.declineReasons.length === 0 && <p className="dim">No declined calls this month.</p>}
           {s.declineReasons.map((d) => (
             <div className="hbar" key={d.criterion}>
@@ -147,22 +149,22 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </p>
         </div>
 
-        <div className="card">
-          <h2>What it cost</h2>
+        <div className="card dark">
+          <h2>What it <span className="hl lime">cost</span></h2>
           <table>
             <tbody>
               <tr><td>Voice & telephony <span className="dim">Vaani Labs{s.cost.voiceActual ? "" : " · estimate"}</span></td><td className="num">{inr(s.cost.voice, 2)}</td></tr>
               <tr><td>Classification <span className="dim">Gemini Flash</span></td><td className="num">{inr(s.cost.ai, 2)}</td></tr>
               <tr><td>Designer emails <span className="dim">Resend</span></td><td className="num">{inr(s.cost.email, 2)}</td></tr>
               <tr><td>Fixed <span className="dim">HubSpot, Neon, Vercel free tiers{s.cost.fixed ? " + number rental" : ""}</span></td><td className="num">{inr(s.cost.fixed, 2)}</td></tr>
-              <tr><td><b>Total</b></td><td className="num"><b>{inr(s.cost.total, 2)}</b></td></tr>
+              <tr className="total"><td>Total</td><td className="num">{inr(s.cost.total, 2)}</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
       <section className="card">
-        <h2>Calls</h2>
+        <h2>All <span className="hl lilac">calls</span></h2>
         <div className="scroll">
           <table>
             <thead>

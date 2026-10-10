@@ -4,6 +4,7 @@ import { syncFromVaani } from "@/lib/vaani-sync";
 import { availableMonths, inr, monthStats } from "@/lib/metrics";
 import { CRITERION_LABELS, LeadStatus } from "@/lib/types";
 import { STATUS, StatusPill } from "./status";
+import { AsciiWave, CountUp, Scramble, Spinner } from "./fx";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +37,29 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <main className="wrap">
       <header className="hero">
         <div className="brand">// Aangan Studio · Call desk</div>
-        <h1>Every call <span className="hl">answered.</span><br />Every lead <span className="hl lilac">qualified.</span></h1>
+        <h1>Every call <Scramble className="hl" text="answered." onMount /><br />Every lead <Scramble className="hl lilac" text="qualified." onMount /></h1>
         <div className="hero-row">
           <p className="sub">Answered, checked against Nikhil&apos;s five criteria and handed to a designer — {monthLabel(month)}.</p>
           <span className="tag">AI call qualifier →</span>
         </div>
+        <AsciiWave label={`${s.total} calls on the line`} />
         <nav className="months" aria-label="Month">
           {months.map((m) => (
             <Link key={m} href={`/?month=${m}`} className={m === month ? "on" : ""}>{monthLabel(m)}</Link>
           ))}
         </nav>
       </header>
+
+      <div className="ticker" aria-hidden>
+        <div className="ticker-track">
+          {[0, 1].map((k) => (
+            <span key={k}>
+              ▓ {s.total} calls answered ░ {s.afterHours} after hours ░ {s.forwarded} sent to designers ░ {s.byStatus.good} good leads ░{" "}
+              {s.byStatus.escalation} escalations ░ {s.pricingAsked} price questions deflected ░ {inr(s.cost.total)} to run ░ 0 prices quoted ░&nbsp;
+            </span>
+          ))}
+        </div>
+      </div>
 
       {hasSeed && (
         <div className="banner">
@@ -58,34 +71,34 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <section className="grid kpis">
         <div className="card stat">
           <div className="l">Calls answered</div>
-          <div className="v">{s.total}</div>
+          <div className="v"><CountUp to={s.total} /></div>
           <div className="s">100% picked up · avg {Math.round(s.avgDurationSec / 60 * 10) / 10} min</div>
         </div>
         <div className="card stat">
           <div className="l">Outside 10am–7pm</div>
-          <div className="v">{s.afterHours}</div>
+          <div className="v"><CountUp to={s.afterHours} /></div>
           <div className="s">{pct(s.afterHours)}% of calls — outside front-desk hours</div>
         </div>
         <div className="card stat">
           <div className="l">Sent to designers</div>
-          <div className="v">{s.forwarded}</div>
+          <div className="v"><CountUp to={s.forwarded} /></div>
           <div className="s">{s.byStatus.good} good · {s.byStatus.unsure} unsure{s.handoffMinutes != null ? ` · email in ${Math.max(1, Math.round(s.handoffMinutes))} min` : ""}</div>
         </div>
         <div className="card stat">
           <div className="l">Consultations booked</div>
-          <div className="v">{s.booked}</div>
+          <div className="v"><CountUp to={s.booked} /></div>
           <div className="s">on the call, via Cal.com</div>
         </div>
         <div className="card stat">
           <div className="l">Cost to run</div>
-          <div className="v">{inr(s.cost.total)}</div>
+          <div className="v"><CountUp to={Math.round(s.cost.total)} prefix="₹" /></div>
           <div className="s">{inr(perCall, 2)} per call · {inr(perForwarded, 2)} per lead sent</div>
         </div>
       </section>
 
       <section className="grid two">
         <div className="card">
-          <h2>Lead <span className="hl lime">quality</span></h2>
+          <h2>Lead <Scramble className="hl lime" text="quality" /></h2>
           <div className="mix" role="img" aria-label={ORDER.map((k) => `${STATUS[k].label} ${s.byStatus[k]}`).join(", ")}>
             {ORDER.filter((k) => s.byStatus[k] > 0).map((k) => (
               <span key={k} title={`${STATUS[k].label}: ${s.byStatus[k]}`} style={{ flex: s.byStatus[k], background: STATUS[k].color }} />
@@ -111,10 +124,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
 
         <div className="card">
-          <h2>Calls <span className="hl pink">per day</span></h2>
+          <h2>Calls <Scramble className="hl pink" text="per day" /></h2>
           <div className="cols" role="img" aria-label="Calls per day">
-            {s.perDay.map((d) => (
-              <div className="col" key={d.day}>
+            {s.perDay.map((d, i) => (
+              <div className="col" key={d.day} style={{ ["--i" as string]: i } as React.CSSProperties}>
                 {d.count - d.afterHours > 0 && (
                   <span style={{ height: `${((d.count - d.afterHours) / maxDay) * 100}%`, background: "var(--accent)" }} />
                 )}
@@ -135,10 +148,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <section className="grid two">
         <div className="card">
-          <h2>Why calls <span className="hl">weren&apos;t a fit</span></h2>
+          <h2>Why calls <Scramble className="hl" text="weren't a fit" /></h2>
           {s.declineReasons.length === 0 && <p className="dim">No declined calls this month.</p>}
-          {s.declineReasons.map((d) => (
-            <div className="hbar" key={d.criterion}>
+          {s.declineReasons.map((d, i) => (
+            <div className="hbar" key={d.criterion} style={{ ["--i" as string]: i } as React.CSSProperties}>
               <span>{d.criterion === "out_of_scope" ? "Out of scope" : CRITERION_LABELS[d.criterion]}</span>
               <div className="track"><div className="fill" style={{ width: `${(d.count / maxDecline) * 100}%` }} /></div>
               <span className="n">{d.count}</span>
@@ -150,7 +163,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
 
         <div className="card dark">
-          <h2>What it <span className="hl lime">cost</span></h2>
+          <h2>What it <Scramble className="hl lime" text="cost" /></h2>
           <table>
             <tbody>
               <tr><td>Voice & telephony <span className="dim">Vaani Labs{s.cost.voiceActual ? "" : " · estimate"}</span></td><td className="num">{inr(s.cost.voice, 2)}</td></tr>
@@ -164,7 +177,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </section>
 
       <section className="card">
-        <h2>All <span className="hl lilac">calls</span></h2>
+        <h2>All <Scramble className="hl lilac" text="calls" /></h2>
         <div className="scroll">
           <table>
             <thead>
@@ -186,7 +199,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <td><StatusPill status={c.status} /></td>
                   <td className="hide-sm dim">
                     {c.booked_at ? "Booked · " : ""}
-                    {c.email_sent_at ? "Emailed" : c.source === "seed" ? "Baseline" : c.status === "bad" ? "HubSpot only" : "Pending"}
+                    {c.email_sent_at ? "Emailed" : c.source === "seed" ? "Baseline" : c.status === "bad" ? "HubSpot only" : <><Spinner /> Pending</>}
                   </td>
                 </tr>
               ))}

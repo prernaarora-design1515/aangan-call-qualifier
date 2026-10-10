@@ -206,3 +206,103 @@ tbody tr { transition: background .12s; }
   .crit { grid-template-columns: 1fr 86px; }
   .crit span:last-child { grid-column: 1 / -1; color: var(--ink-2); }
 }
+
+/* =================== motion + micro-interactions =================== */
+:root { --ease: cubic-bezier(.2, .8, .2, 1); --spring: cubic-bezier(.34, 1.56, .64, 1); }
+
+/* blinking terminal caret after the brand line */
+.brand::after { content: "_"; margin-left: 2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ASCII voice line */
+.ascii-wave {
+  position: relative; height: 132px; margin-top: 22px; cursor: crosshair;
+  border-top: 1px dashed rgba(232,228,220,.22); border-bottom: 1px dashed rgba(232,228,220,.22);
+  overflow: hidden; user-select: none;
+}
+.ascii-wave pre {
+  margin: 0; height: 100%; font-family: var(--mono); font-size: 12px; line-height: 14px;
+  color: var(--lime); opacity: .85; white-space: pre; letter-spacing: 0;
+}
+.ascii-wave:hover pre { opacity: 1; text-shadow: 0 0 12px rgba(228,242,92,.35); }
+.ascii-label {
+  position: absolute; left: 0; bottom: 6px; font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--on-forest); background: var(--forest); padding: 2px 8px 2px 0;
+}
+.ascii-label .dim-on { color: var(--on-forest-dim); text-transform: none; letter-spacing: 0; }
+.rec { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--coral); margin-right: 4px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,143,100,.7); } 50% { box-shadow: 0 0 0 6px rgba(255,143,100,0); } }
+
+/* ASCII ticker */
+.ticker {
+  overflow: hidden; background: var(--lime); color: var(--ink); border-radius: 999px; margin: -2px 0 18px;
+  font-family: var(--mono); font-size: 13px; white-space: nowrap; transform: rotate(-.6deg);
+}
+.ticker-track { display: inline-flex; padding: 9px 0; animation: marquee 38s linear infinite; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+/* hero entrance */
+.hero h1, .hero .sub, .hero .tag, .ascii-wave, .months { animation: rise .8s var(--ease) backwards; }
+.hero .sub { animation-delay: .12s; } .hero .tag { animation-delay: .22s; }
+.ascii-wave { animation-delay: .3s; } .months { animation-delay: .38s; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+.hero .tag { transition: transform .35s var(--spring); cursor: default; animation-name: rise-tag; animation-fill-mode: backwards; }
+@keyframes rise-tag { from { opacity: 0; transform: translateY(14px) rotate(-3deg); } to { transform: rotate(-3deg); } }
+.hero .tag:hover { transform: rotate(3deg) scale(1.08); }
+.hl { transition: transform .3s var(--spring); }
+h1:hover .hl, h2:hover .hl { transform: rotate(-1.5deg); }
+
+/* cards lift, stickers tilt */
+.card { transition: transform .35s var(--ease), box-shadow .35s var(--ease); animation: rise .7s var(--ease) backwards; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -22px rgba(10,47,38,.45); }
+.kpis .card:nth-child(2) { animation-delay: .05s; } .kpis .card:nth-child(3) { animation-delay: .1s; }
+.kpis .card:nth-child(4) { animation-delay: .15s; } .kpis .card:nth-child(5) { animation-delay: .2s; }
+.stat .l { transition: transform .35s var(--spring); }
+.stat:hover .l { transform: rotate(-4deg) translateY(-2px); }
+.stat .v { transition: letter-spacing .3s var(--ease); }
+.stat:hover .v { letter-spacing: .02em; }
+
+/* charts grow in */
+.mix span { animation: growX .9s var(--ease) backwards; transform-origin: left; transition: filter .2s, transform .2s; }
+.mix span:hover { filter: brightness(1.1) saturate(1.2); transform: scaleY(1.25); }
+@keyframes growX { from { transform: scaleX(0); } }
+.col span { animation: growY .7s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 22ms + .2s); transform-origin: bottom; }
+@keyframes growY { from { transform: scaleY(0); } }
+.hbar .fill { animation: fillW 1s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 80ms + .2s); }
+@keyframes fillW { from { width: 0; } }
+.hbar { transition: transform .2s var(--ease); }
+.hbar:hover { transform: translateX(4px); }
+.hbar:hover .fill { background: var(--coral); }
+.legend > div { transition: transform .2s var(--ease); }
+.legend > div:hover { transform: translateX(3px); }
+.legend > div:hover .sw { transform: scale(1.4); }
+.sw { transition: transform .2s var(--spring); }
+
+/* table rows: arrow slides in on hover */
+tbody tr td:first-child .rowlink { position: relative; transition: transform .2s var(--ease); }
+tbody tr:hover td:first-child .rowlink { transform: translateX(14px); }
+tbody tr td:first-child .rowlink::before {
+  content: "→"; position: absolute; left: -16px; opacity: 0; transition: opacity .2s; font-family: var(--mono);
+}
+tbody tr:hover td:first-child .rowlink::before { opacity: 1; }
+.pill { transition: transform .25s var(--spring), background .2s; }
+tr:hover .pill, .crit:hover .pill { transform: rotate(-3deg) scale(1.05); background: var(--lime); }
+.spin { display: inline-block; width: 1ch; font-family: var(--mono); color: var(--ink); }
+
+/* pills + buttons */
+.months a { transition: background .15s, color .15s, transform .25s var(--spring); }
+.months a:hover { transform: translateY(-2px); }
+.months a:active, .back:active { transform: scale(.96); }
+.back { transition: background .15s, transform .2s var(--ease); }
+.back:hover { transform: translateX(-3px); }
+
+/* call detail */
+.crit { transition: background .2s; border-radius: 8px; }
+.crit:hover { background: color-mix(in srgb, var(--lilac) 18%, transparent); }
+.transcript::-webkit-scrollbar { width: 8px; }
+.transcript::-webkit-scrollbar-thumb { background: var(--stone); border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

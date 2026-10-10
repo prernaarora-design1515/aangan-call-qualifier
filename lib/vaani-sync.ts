@@ -31,9 +31,53 @@ interface VaaniCall {
 
 export async function syncFromVaani(limit = 8): Promise<{ checked: number; processed: string[]; skipped: string[]; errors: string[] }> {
   if (!process.env.VAANI_API_KEY) throw new Error("VAANI_API_KEY is not set");
-  const page = await vaani("/api/call-history?page=1&page_size=50");
-  const calls: VaaniCall[] = page?.data ?? [];
   const processed: string[] = [], skipped: string[] = [], errors: string[] = [];
+
+  // Calls placed from the dashboard: mark them done once their call row exists (webhook or sync)
+  await q(`UPDATE outbound_calls o SET status = 'completed' FROM calls c
+           WHERE o.status = 'dialing' AND o.vaani_call_id IS NOT NULL AND c.external_id = o.vaani_call_id`).catch(() => {});
+
+  // Call history can fail on Vaani's side for some accounts — fall back to known call ids below
+  let calls: VaaniCall[] = [];
+  try {
+    const page = await vaani("/api/call-history?page=1&page_size=50");
+    calls = page?.data ?? [];
+  } catch (e: any) {
+    errors.push(`call-history: ${String(e.message ?? e).slice(0, 160)}`);
+  }
+
+  // Outbound calls we triggered ourselves: we know their ids, so fetch transcripts directly
+  const pending = await q<{ id: number; vaani_call_id: string; phone: string; created_at: string }>(
+    `SELECT o.id, o.vaani_call_id, o.phone, o.created_at FROM outbound_calls o
+      WHERE o.status = 'dialing' AND o.vaani_call_id IS NOT NULL AND o.created_at > now() - interval '2 days'
+        AND NOT EXISTS (SELECT 1 FROM calls c WHERE c.external_id = o.vaani_call_id)
+      ORDER BY o.created_at DESC LIMIT 5`
+  ).catch(() => []);
+  for (const o of pending) {
+    try {
+      const t = await vaani(`/api/transcript/${encodeURIComponent(o.vaani_call_id)}`);
+      const transcript = normaliseTranscript(t?.transcript ?? t?.transcription);
+      if (!transcript) { skipped.push(o.vaani_call_id); continue; }
+      await processCall({
+        externalId: o.vaani_call_id,
+        source: "vaani",
+        callerPhone: o.phone,
+        startedAt: new Date(o.created_at),
+        durationSec: null,
+        transcript,
+      });
+      await q("UPDATE outbound_calls SET status = 'completed' WHERE id = $1", [o.id]);
+      processed.push(o.vaani_call_id);
+    } catch (e: any) {
+      const msg = String(e.message ?? e);
+      // not ready yet (call still running / no answer) — try again on the next sync
+      if (/ 404|not found/i.test(msg)) {
+        if (Date.now() - new Date(o.created_at).getTime() > 30 * 60_000)
+          await q("UPDATE outbound_calls SET status = 'no_answer' WHERE id = $1", [o.id]);
+        skipped.push(o.vaani_call_id);
+      } else errors.push(`${o.vaani_call_id}: ${msg.slice(0, 160)}`);
+    }
+  }
 
   const ids = calls.map((c) => c.call_id).filter(Boolean);
   const known = new Set(

@@ -22,16 +22,14 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="wrap">
-      <p><Link className="back" href={`/?month=${month}`}>← All calls</Link></p>
-      <header className="top">
-        <div>
-          <h1>{c.caller_name ?? "Unknown caller"} <StatusPill status={c.status} /></h1>
-          <p>
-            {fmt(c.started_at)} · {Math.round((c.duration_sec ?? 0) / 60 * 10) / 10} min
-            {c.after_hours ? " · after hours" : ""}{c.caller_phone ? ` · ${c.caller_phone}` : ""}
-            {c.source === "seed" ? " · September baseline" : ""}
-          </p>
-        </div>
+      <Link className="back" href={`/?month=${month}`}>— All calls</Link>
+      <header className="hero compact">
+        <div className="brand">// Call #{c.id}{c.source === "seed" ? " · September baseline" : ""}</div>
+        <h1>{c.caller_name ?? "Unknown caller"} <StatusPill status={c.status} /></h1>
+        <p className="meta">
+          {fmt(c.started_at)} · {Math.round((c.duration_sec ?? 0) / 60 * 10) / 10} min
+          {c.after_hours ? " · after hours" : ""}{c.caller_phone ? ` · ${c.caller_phone}` : ""}
+        </p>
       </header>
 
       {c.errors?.length > 0 && (
@@ -40,11 +38,11 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid two">
         <div className="card">
-          <h2>Handoff note</h2>
+          <h2>Handoff <span className="hl lime">note</span></h2>
           <p className="note" style={{ marginTop: 0 }}>{c.handoff_note}</p>
           {c.open_questions.length > 0 && (
             <>
-              <h2 style={{ marginTop: 16 }}>Still to ask</h2>
+              <h2 style={{ marginTop: 22 }}>Still <span className="hl pink">to ask</span></h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>{c.open_questions.map((x) => <li key={x}>{x}</li>)}</ul>
             </>
           )}
@@ -56,7 +54,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <div className="card">
-          <h2>Rubric</h2>
+          <h2>The <span className="hl lilac">rubric</span></h2>
           {CRITERIA.map((k) => {
             const v = c.criteria[k];
             return (
@@ -75,11 +73,11 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid two">
         <div className="card">
-          <h2>Transcript</h2>
+          <h2><span className="hl">Transcript</span></h2>
           <div className="transcript">{c.transcript}</div>
         </div>
-        <div className="card">
-          <h2>Details</h2>
+        <div className="card dark">
+          <h2>The <span className="hl lime">details</span></h2>
           <table>
             <tbody>
               <tr><td>Project</td><td>{c.project_type}{c.carpet_area_sqft ? ` · ${c.carpet_area_sqft.toLocaleString("en-IN")} sq ft` : ""}</td></tr>
@@ -89,7 +87,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
               <tr><td>Asked about price</td><td>{c.pricing_asked ? "Yes — deflected" : "No"}</td></tr>
               <tr><td>Voice cost</td><td className="num">{inr(Number(c.voice_cost_inr), 2)}{c.voice_cost_actual ? "" : " (est.)"}</td></tr>
               <tr><td>AI cost</td><td className="num">{inr(Number(c.ai_cost_inr), 3)} <span className="dim">{c.ai_input_tokens + c.ai_output_tokens} tokens</span></td></tr>
-              <tr><td><b>Call total</b></td><td className="num"><b>{inr(total, 2)}</b></td></tr>
+              <tr className="total"><td>Call total</td><td className="num">{inr(total, 2)}</td></tr>
             </tbody>
           </table>
         </div>

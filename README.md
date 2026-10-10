@@ -5,7 +5,7 @@ Nikhil's five-point rubric. Worthwhile leads reach a designer by email with ever
 and a dashboard shows what the system is generating and what it costs to run.
 
 ```
-Caller ──► Vaani Labs voice agent ──(signed call.completed webhook)──► /api/vaani/webhook
+Caller ──► Vaani AI voice agent ──(call_postprocessing webhook)──► /api/vaani/webhook?key=…
             │  prompt: prompts/voice-agent.md                             │
             │  knowledge: services.md, pricing.md, qualified.md           ├─► Gemini Flash: evidence per criterion
             │  tools: get_slots / book_consultation ──► Cal.com           ├─► lib/rubric.ts: Good / Unsure / Bad / Escalation
@@ -20,7 +20,7 @@ Founder ──► Vercel dashboard (/) — calls, lead mix, decline reasons, cos
 |---|---|
 | Claude Chat | Built the qualification logic → `prompts/voice-agent.md`, `lib/rubric.ts` |
 | Claude Code | This repo |
-| Vaani Labs | Voice, telephony, call orchestration; sends `call.completed` + `usage.charged` webhooks |
+| Vaani AI (app.vaanivoice.ai) | Voice, telephony, call orchestration; sends `call_started` + `call_postprocessing` webhooks |
 | Gemini Flash | Reads the transcript and judges each of the 5 criteria (cheap, fast) |
 | Cal.com | Consultation booking inside the call (`/api/tools/*`) |
 | HubSpot | CRM: every call logged; Good calls become deals |
@@ -43,10 +43,11 @@ Founder ──► Vercel dashboard (/) — calls, lead mix, decline reasons, cos
   `pricing.md` is never sent to the classifier, so a price can't leak into an email either.
 - **Email instead of Telegram.** It sits alongside the HubSpot record, is searchable and easy to forward,
   and each designer needs no extra app.
-- **Cost is a first-class metric.** Gemini's token usage is priced for every call. Voice cost uses Vaani's
-  `usage.charged` debit when it arrives, and is estimated until then. All rates are env vars.
-- **Reliability.** Webhooks are HMAC-verified and deduplicated on the event id. The endpoint responds
-  within Vaani's 10-second limit, and qualification runs afterwards. If HubSpot or Resend fails, the
+- **Cost is a first-class metric.** Gemini's token usage is priced for every call. Vaani AI's webhooks
+  don't report cost, so voice cost uses the agent's per-minute rate (`VAANI_INR_PER_MIN`, ₹5.60). All rates are env vars.
+- **Reliability.** Vaani AI webhooks are unsigned, so the webhook URL carries a secret (`?key=`).
+  Events are deduplicated per call, and the endpoint responds before qualification runs.
+  A pull-based sync (`/api/vaani/sync`, GitHub Action every 5 min, needs `VAANI_API_KEY`) is a backstop. If HubSpot or Resend fails, the
   error is recorded on the call and the call itself is kept.
 
 ## Setup
@@ -57,11 +58,10 @@ Founder ──► Vercel dashboard (/) — calls, lead mix, decline reasons, cos
 4. `npm run dev`, then open http://localhost:3000. The dashboard password is `DASHBOARD_PASSWORD`; any username works.
 5. **Gemini check**: `npm run eval` runs Gemini over the 19 seed calls and compares its outcomes with the reviewed labels.
 6. **Deploy**: push to GitHub, import the repo in Vercel, and add every variable from `.env.example`.
-7. **Vaani Labs**:
-   - Agent system prompt: `prompts/voice-agent.md`. Knowledge base: the three files in `knowledge/`.
-   - Webhook: `https://<app>.vercel.app/api/vaani/webhook`, subscribed to `call.completed` and `usage.charged`.
-     Copy the signing secret into `VAANI_WEBHOOK_SECRET`.
-   - HTTP tools (header `x-tool-secret: $TOOL_SECRET`):
+7. **Vaani AI** (app.vaanivoice.ai):
+   - Agent system prompt: `prompts/voice-agent.md`. Knowledge base: `services.md` and `qualified.md` (pricing.md is left out on purpose).
+   - Developers → Webhooks: `https://<app>.vercel.app/api/vaani/webhook?key=<VAANI_WEBHOOK_SECRET>`, events Call Started + Call Post-Processing.
+   - Optional in-call booking tools (header `x-tool-secret: <TOOL_SECRET>`) — currently off, see Status:
      - `get_slots` → `GET /api/tools/slots`
      - `book_consultation` → `POST /api/tools/book` with `{ start, name, phone, email?, summary, call_id }`
 8. **HubSpot**: create a private app with contacts and deals read/write scopes, and put its token in `HUBSPOT_TOKEN`.
@@ -75,6 +75,15 @@ curl -u x:$DASHBOARD_PASSWORD -X POST https://<app>.vercel.app/api/dev/simulate 
   -H 'content-type: application/json' \
   -d '{"transcript":"Agent: Aangan Studio...\nCaller: Hi, 2BHK in Baner, full redesign, by March. I am the owner."}'
 ```
+
+## Status (Oct 2026)
+
+- Live on Vercel with Neon; September calls seeded as a baseline.
+- Vaani agent "Aanya" set up with prompt, knowledge base and webhook. No inbound number yet: a normal mobile
+  can't be imported, it needs a SIP trunk (Exotel/Plivo/Twilio) or a number bought in Vaani.
+- In-call booking is off: Vaani custom tools save but stay hidden, so they can't be attached. Qualified callers
+  are told a designer will call back to fix the consultation; the designer email carries everything.
+- Resend is in test mode (onboarding@resend.dev), so emails only reach the account owner until a domain is verified.
 
 ## Not built yet
 

@@ -66,7 +66,7 @@ export function AsciiWave({ label = "live line" }: { label?: string }) {
           const d = Math.abs(x - p.x * cols) - r;
           a += Math.max(0, 1 - age / 1.6) * 0.9 * Math.exp(-(d * d) / 6);
         }
-        amp.push(Math.min(1, Math.abs(a)));
+        amp.push(Math.min(1.05, Math.abs(a) * 1.65));
       }
       for (let i = pings.length - 1; i >= 0; i--) if (t - pings[i].t > 1.6) pings.splice(i, 1);
       for (let y = 0; y < rows; y++) {
@@ -75,7 +75,7 @@ export function AsciiWave({ label = "live line" }: { label?: string }) {
         for (let x = 0; x < cols; x++) {
           const v = amp[x] - dy;
           if (v <= 0) line += dy < 0.08 && (x + Math.floor(t * 8)) % 4 === 0 ? "-" : " ";
-          else line += RAMP[Math.min(RAMP.length - 1, 1 + Math.floor(v * (RAMP.length - 1) * 1.6))];
+          else line += RAMP[Math.min(RAMP.length - 1, 1 + Math.floor(v * (RAMP.length - 1) * 2.2))];
         }
         lines.push(line);
       }

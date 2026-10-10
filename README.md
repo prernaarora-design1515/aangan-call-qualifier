@@ -76,6 +76,20 @@ curl -u x:$DASHBOARD_PASSWORD -X POST https://<app>.vercel.app/api/dev/simulate 
   -d '{"transcript":"Agent: Aangan Studio...\nCaller: Hi, 2BHK in Baner, full redesign, by March. I am the owner."}'
 ```
 
+## Call a lead (outbound)
+
+The dashboard header has a **☎ Call a lead** button. Enter a number (10-digit Indian numbers get +91 added)
+and an optional name, and Aanya calls it through Vaani's `POST /api/trigger-call/`. The call is then qualified
+and logged like any inbound call. Route: `app/api/outbound/route.ts` (dashboard password + `x-aangan-dialer`
+header, 10 calls/hour via `OUTBOUND_HOURLY_LIMIT`). Placed calls go in the `outbound_calls` table; the sync
+fetches their transcripts by call id, so they don't depend on Vaani's call-history endpoint.
+Needs `VAANI_API_KEY` and `VAANI_AGENT_ID`.
+
+## Demo data
+
+`db/demo-calls.json` holds 14 October demo calls (tagged DEMO on the dashboard) plus 4 demo outbound calls,
+loaded on every build by `scripts/seed.ts`. Set `SKIP_DEMO=1` in Vercel and redeploy to remove them.
+
 ## Status (Oct 2026)
 
 - Live on Vercel with Neon; September calls seeded as a baseline.
@@ -84,6 +98,10 @@ curl -u x:$DASHBOARD_PASSWORD -X POST https://<app>.vercel.app/api/dev/simulate 
 - In-call booking is off: Vaani custom tools save but stay hidden, so they can't be attached. Qualified callers
   are told a designer will call back to fix the consultation; the designer email carries everything.
 - Resend is in test mode (onboarding@resend.dev), so emails only reach the account owner until a domain is verified.
+- Gemini 2.5 Flash was retired by Google; production uses `GEMINI_MODEL=gemini-3.8-flash`.
+- Vaani's `GET /api/call-history` returns "Invalid client_id format" for this account (a Vaani-side issue), so
+  inbound calls rely on the webhook; dashboard-placed calls are fetched by id.
+- Tested end to end with `/api/dev/simulate`: Gemini → rubric → HubSpot contact/deal → designer and founder emails.
 
 ## Not built yet
 
@@ -97,11 +115,13 @@ curl -u x:$DASHBOARD_PASSWORD -X POST https://<app>.vercel.app/api/dev/simulate 
 
 ```
 app/                 dashboard (/), call detail (/calls/[id]), API routes
+app/fx.tsx           ASCII voice wave, count-ups, scramble text, spinner
+app/dialer.tsx       "Call a lead" panel
 lib/pipeline.ts      processCall(): AI → rubric → DB → HubSpot → email
 lib/rubric.ts        qualified.md as code
 lib/gemini.ts        classifier prompt + JSON schema
 prompts/             Vaani agent system prompt
 knowledge/           services.md, pricing.md, qualified.md
-db/                  schema.sql, seed-calls.json (Sept transcripts + reviewed labels)
+db/                  schema.sql, seed-calls.json (Sept transcripts + reviewed labels), demo-calls.json (Oct demo)
 scripts/             migrate, seed, eval
 ```

@@ -4,6 +4,7 @@ import { q } from "@/lib/db";
 import { inr } from "@/lib/metrics";
 import { CallRow, CRITERIA, CRITERION_LABELS } from "@/lib/types";
 import { StatusPill } from "../../status";
+import { Scramble } from "../../fx";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
       <Link className="back" href={`/?month=${month}`}>— All calls</Link>
       <header className="hero compact">
         <div className="brand">// Call #{c.id}{c.source === "seed" ? " · September baseline" : ""}</div>
-        <h1>{c.caller_name ?? "Unknown caller"} <StatusPill status={c.status} /></h1>
+        <h1><Scramble text={c.caller_name ?? "Unknown caller"} onMount /> <StatusPill status={c.status} /></h1>
         <p className="meta">
           {fmt(c.started_at)} · {Math.round((c.duration_sec ?? 0) / 60 * 10) / 10} min
           {c.after_hours ? " · after hours" : ""}{c.caller_phone ? ` · ${c.caller_phone}` : ""}
@@ -38,11 +39,11 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid two">
         <div className="card">
-          <h2>Handoff <span className="hl lime">note</span></h2>
+          <h2>Handoff <Scramble className="hl lime" text="note" /></h2>
           <p className="note" style={{ marginTop: 0 }}>{c.handoff_note}</p>
           {c.open_questions.length > 0 && (
             <>
-              <h2 style={{ marginTop: 22 }}>Still <span className="hl pink">to ask</span></h2>
+              <h2 style={{ marginTop: 22 }}>Still <Scramble className="hl pink" text="to ask" /></h2>
               <ul style={{ margin: 0, paddingLeft: 18 }}>{c.open_questions.map((x) => <li key={x}>{x}</li>)}</ul>
             </>
           )}
@@ -54,7 +55,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <div className="card">
-          <h2>The <span className="hl lilac">rubric</span></h2>
+          <h2>The <Scramble className="hl lilac" text="rubric" /></h2>
           {CRITERIA.map((k) => {
             const v = c.criteria[k];
             return (
@@ -73,11 +74,11 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
 
       <section className="grid two">
         <div className="card">
-          <h2><span className="hl">Transcript</span></h2>
+          <h2><Scramble className="hl" text="Transcript" /></h2>
           <div className="transcript">{c.transcript}</div>
         </div>
         <div className="card dark">
-          <h2>The <span className="hl lime">details</span></h2>
+          <h2>The <Scramble className="hl lime" text="details" /></h2>
           <table>
             <tbody>
               <tr><td>Project</td><td>{c.project_type}{c.carpet_area_sqft ? ` · ${c.carpet_area_sqft.toLocaleString("en-IN")} sq ft` : ""}</td></tr>

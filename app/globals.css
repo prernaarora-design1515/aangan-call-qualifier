@@ -306,3 +306,71 @@ tr:hover .pill, .crit:hover .pill { transform: rotate(-3deg) scale(1.05); backgr
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* =================== dialer ("Call a lead") =================== */
+.dialer { margin-top: 22px; animation: rise .8s var(--ease) .26s backwards; }
+.dial-btn {
+  display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+  font: 500 15px/1 var(--mono); color: var(--forest); background: var(--lime);
+  border: 0; border-radius: 999px; padding: 14px 22px; box-shadow: 0 8px 24px -10px rgba(228,242,92,.6);
+  transition: transform .25s var(--spring), box-shadow .25s var(--ease), background .2s;
+}
+.dial-btn:hover { transform: translateY(-2px) rotate(-1deg); box-shadow: 0 14px 30px -12px rgba(228,242,92,.75); }
+.dial-btn:active { transform: scale(.96); }
+.dial-btn:focus-visible, .dial-form input:focus-visible, .ring:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+.dial-ico { display: inline-block; font-size: 17px; }
+.dialer:not(.is-open) .dial-btn:hover .dial-ico { animation: ring .6s ease-in-out; }
+@keyframes ring { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-18deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-10deg); } 80% { transform: rotate(6deg); } }
+.dialer.is-open .dial-btn { background: var(--on-forest); }
+
+.dial-panel {
+  margin-top: 14px; border: 1px dashed rgba(232,228,220,.3); border-radius: var(--r-md);
+  padding: 18px; background: rgba(0,0,0,.14); animation: drop .35s var(--ease);
+}
+.dial-panel[hidden] { display: none; }
+@keyframes drop { from { opacity: 0; transform: translateY(-8px); } }
+.dial-form { display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 12px; align-items: end; }
+.dial-form label { display: flex; flex-direction: column; gap: 6px; }
+.dial-form label span { font: 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--on-forest-dim); }
+.dial-form label i { text-transform: none; font-style: normal; opacity: .7; }
+.dial-form input {
+  font: 500 18px var(--mono); color: var(--on-forest); background: transparent;
+  border: 0; border-bottom: 1.5px solid var(--on-forest-dim); padding: 8px 2px; border-radius: 0;
+  transition: border-color .2s;
+}
+.dial-form input::placeholder { color: rgba(232,228,220,.35); }
+.dial-form input:focus { border-bottom-color: var(--lime); outline: none; }
+.ring {
+  font: 500 14px var(--mono); background: var(--coral); color: var(--ink); border: 0; border-radius: 999px;
+  padding: 13px 22px; min-width: 130px; cursor: pointer; transition: transform .25s var(--spring), opacity .2s;
+}
+.ring:hover:not(:disabled) { transform: translateY(-2px); }
+.ring:disabled { opacity: .45; cursor: not-allowed; }
+.ring code { font: inherit; letter-spacing: 0; }
+.dial-msg { margin: 12px 0 0; font-size: 13px; color: var(--on-forest-dim); min-height: 1.5em; }
+.dial-msg.ok { color: var(--lime); }
+.dial-msg.err { color: var(--coral); }
+.dial-recent { margin-top: 16px; border-top: 1px dashed rgba(232,228,220,.2); padding-top: 12px; }
+.dial-head { font: 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--on-forest-dim); margin-bottom: 6px; }
+.dim-on { color: var(--on-forest-dim); font-size: 13px; }
+.dial-row {
+  display: grid; grid-template-columns: 12px 1fr 1.1fr 90px 100px; gap: 10px; align-items: center;
+  font: 13px var(--mono); padding: 7px 4px; border-radius: 8px; transition: background .15s, transform .2s var(--ease);
+}
+.dial-row:hover { background: rgba(232,228,220,.07); transform: translateX(3px); }
+.dial-row .num { color: var(--on-forest-dim); }
+.dial-row .when { color: var(--on-forest-dim); text-align: right; font-size: 12px; }
+.dial-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stone); }
+.dot.completed { background: var(--lime); } .dot.failed { background: var(--coral); } .dot.no_answer { background: var(--lilac); }
+.dot.dialing { background: var(--lime); animation: pulse 1.4s ease-in-out infinite; }
+.st.failed { color: var(--coral); } .st.completed { color: var(--lime); }
+.demo-tag {
+  display: inline-block; margin-left: 6px; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .05em;
+  background: var(--paper); border: 1px solid var(--line); color: var(--muted); padding: 1px 5px; border-radius: 4px; vertical-align: 2px;
+}
+.banner.demo::before { content: "DEMO"; background: var(--lime); }
+@media (max-width: 640px) {
+  .dial-form { grid-template-columns: 1fr; }
+  .dial-row { grid-template-columns: 12px 1fr 80px; }
+  .dial-row .num, .dial-row .when { display: none; }
+}

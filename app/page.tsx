@@ -5,6 +5,8 @@ import { availableMonths, inr, monthStats } from "@/lib/metrics";
 import { CRITERION_LABELS, LeadStatus } from "@/lib/types";
 import { STATUS, StatusPill } from "./status";
 import { AsciiWave, CountUp, Scramble, Spinner } from "./fx";
+import { Dialer, OutboundRow } from "./dialer";
+import { q } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const perCall = s.total ? s.cost.total / s.total : 0;
   const perForwarded = s.forwarded ? s.cost.total / s.forwarded : 0;
   const hasSeed = s.calls.some((c) => c.source === "seed");
+  const hasDemo = s.calls.some((c) => c.source === "demo");
+  const outbound = await q<OutboundRow>("SELECT id, phone, name, status, error, demo, created_at FROM outbound_calls ORDER BY created_at DESC LIMIT 6").catch(() => []);
 
   return (
     <main className="wrap">
@@ -42,6 +46,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p className="sub">Answered, checked against Nikhil&apos;s five criteria and handed to a designer — {monthLabel(month)}.</p>
           <span className="tag">AI call qualifier →</span>
         </div>
+        <Dialer recent={outbound} />
         <AsciiWave label={`${s.total} calls on the line`} />
         <nav className="months" aria-label="Month">
           {months.map((m) => (
@@ -60,6 +65,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           ))}
         </div>
       </div>
+
+      {hasDemo && (
+        <div className="banner demo">
+          This month shows demo calls (tagged DEMO) so the dashboard isn&apos;t empty — real Vaani calls appear alongside them and replace them over time.
+        </div>
+      )}
 
       {hasSeed && (
         <div className="banner">
@@ -193,7 +204,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                     <Link className="rowlink" href={`/calls/${c.id}`}>{fmtTime(c.started_at)}</Link>
                     {c.after_hours && <div className="dim">after hours</div>}
                   </td>
-                  <td><Link className="rowlink" href={`/calls/${c.id}`}>{c.caller_name ?? <span className="dim">Unknown</span>}</Link></td>
+                  <td><Link className="rowlink" href={`/calls/${c.id}`}>{c.caller_name ?? <span className="dim">Unknown</span>}{c.source === "demo" && <span className="demo-tag">demo</span>}</Link></td>
                   <td><Link className="rowlink" href={`/calls/${c.id}`}>{c.scope_summary}</Link></td>
                   <td className="hide-sm">{c.location ?? <span className="dim">—</span>}</td>
                   <td><StatusPill status={c.status} /></td>

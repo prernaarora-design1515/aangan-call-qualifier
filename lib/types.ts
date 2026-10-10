@@ -42,7 +42,7 @@ export interface CallInput {
   startedAt: Date;
   durationSec: number | null;
   transcript: string;
-  source: "vaani" | "seed" | "simulate";
+  source: "vaani" | "seed" | "simulate" | "demo";
   voiceCostInr?: number | null;
 }
 

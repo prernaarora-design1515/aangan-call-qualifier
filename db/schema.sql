@@ -64,3 +64,17 @@ CREATE TABLE IF NOT EXISTS bookings (
   call_ref     TEXT,                                -- Vaani call id if the tool passed it
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+-- Calls placed from the dashboard ("Call a lead"), via Vaani trigger-call
+CREATE TABLE IF NOT EXISTS outbound_calls (
+  id            SERIAL PRIMARY KEY,
+  phone         TEXT NOT NULL,
+  name          TEXT,
+  status        TEXT NOT NULL DEFAULT 'dialing',   -- dialing | failed | completed | no_answer
+  vaani_call_id TEXT,
+  error         TEXT,
+  demo          BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS outbound_calls_created_idx ON outbound_calls (created_at DESC);
